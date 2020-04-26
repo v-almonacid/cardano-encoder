@@ -1,0 +1,16 @@
+{
+  "name": "cardano-encoder",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bs58": "^4.0.1",
+    "cbor": "^5.0.2",
+    "node-cardano-wallet": "https://github.com/Emurgo/node-cardano-wallet.git"
+  }
+}
