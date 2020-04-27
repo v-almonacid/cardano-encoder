@@ -92,7 +92,7 @@ const encodeTxAsRust = (tx) => {
       new cbor.Tagged(24, cbor.encode(w.PkWitness.map((x) => Buffer.from(x, 'hex')))),
     ]
   })
-  const normTx = [[inputs, outputs], witnesses]
+  const normTx = [[inputs, outputs, {}], witnesses]
   return cbor.encode(normTx)
 }
 
