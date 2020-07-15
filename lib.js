@@ -1,6 +1,12 @@
 const cbor = require('cbor')
 const bs58 = require('bs58')
 
+const _assert = (value, message, ...args) => {
+  if (value) return
+  console.error(`Assertion failed: ${message}`, ...args)
+  throw new Error(message)
+}
+
 
 /**
  * input: string, hex tx data
@@ -71,7 +77,7 @@ const decodeRustTx = (rustTxBody) => {
  * output: Buffer, hex tx data
  */
 const encodeTxAsRust = (tx) => {
-  
+
   const inputs = tx.tx.tx.inputs.map((i) => {
     return [
       0,
@@ -93,7 +99,36 @@ const encodeTxAsRust = (tx) => {
     ]
   })
   const normTx = [[inputs, outputs, {}], witnesses]
-  return cbor.encode(normTx)
+
+  // next we change a few CBOR symbols in order to, hopefully, generate
+  // exactly the same output that is generated through the rust libs
+
+  let txHex = cbor.encode(normTx).toString('hex').toLowerCase()
+
+  const CBOR_REGEX = /^(8283)(8\d)(8200d8185824[0-9A-Fa-f]{72})+(8\d)(8282d8185821[0-9A-Fa-f]{66}1(a|b)[0-9A-Fa-f]{6,}1(a|b)[0-9A-Fa-f]{6,})+(a)/
+
+  _assert(CBOR_REGEX.test(txHex), 'tx meets CBOR regex')
+
+  // replace opening array tag by indefinite-length tag (9f) for inputs array
+  const inputsRegex = /^(8283)(8\d)(8200d8185824)/
+  _assert(inputsRegex.test(txHex), 'can locate input array opening tag')
+  txHex = txHex.replace(inputsRegex, '$19f$3')
+
+  // add closing tag for inputs array (ff)
+  const inputsClosingRegex = /([0-9A-Fa-f]{72})(8\d8282d8185821)/
+  _assert(inputsClosingRegex.test(txHex), 'can locate input array closing tag')
+  txHex = txHex.replace(inputsClosingRegex, '$1ff$2')
+
+  // do the same for outputs array
+  const outputsRegex = /([0-9A-Fa-f]{72}ff)(8\d)(8282d8185821)/
+  _assert(outputsRegex.test(txHex), 'can locate output array opening tag')
+  txHex = txHex.replace(outputsRegex, '$19f$3')
+
+  const outputsClosingRegex = /(1(?:a|b)[0-9A-Fa-f]{6,})(a081)/
+  _assert(outputsClosingRegex.test(txHex), 'can locate output array closing tag')
+  txHex = txHex.replace(outputsClosingRegex, '$1ff$2')
+
+  return Buffer.from(txHex, 'hex')
 }
 
 exports.encodeTxAsRust = encodeTxAsRust
